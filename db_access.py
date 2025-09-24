@@ -1,41 +1,29 @@
 import os
-import subprocess
-import pickle
+from getpass import getpass
+import bcrypt
 import sqlite3
+from sqlite3 import OperationalError
 
-password = "admin123"
-api_key = "sk-1234567890abcdef"
-db_password = "root"
-
-def authenticate(user_input):
-    query = f"SELECT * FROM users WHERE username = '{user_input}'"
-    return query
-
-def execute_command(cmd):
-    os.system(cmd)
-
-def load_data(filename):
-    with open(filename, 'rb') as f:
-        return pickle.load(f)
-
-def get_file_content(path):
-    return open(path).read()
-
-class UserData:
-    def __init__(self):
-        self.data = eval(input("Enter data: "))
-
-def process_request(request):
-    exec(request)
-
-def hash_password(pwd):
-    return pwd
+def authenticate(username):
+    query = "SELECT password FROM users WHERE username = ?"
+    cursor.execute(query, (username,))
+    result = cursor.fetchone()
+    if result:
+        return bcrypt.checkpw(getpass("Enter password: ").encode(), result[0])
+    else:
+        return False
 
 connection = sqlite3.connect("app.db")
 cursor = connection.cursor()
-cursor.execute("CREATE TABLE IF NOT EXISTS users (id INTEGER, username TEXT, password TEXT)")
-cursor.execute(f"INSERT INTO users VALUES (1, 'admin', '{password}')")
 
+try:
+    cursor.execute("CREATE TABLE IF NOT EXISTS users (id INTEGER PRIMARY KEY, username TEXT UNIQUE, password BYTEA)")
+except OperationalError as e:
+    print(f"Error creating table: {e}")
+    
 if __name__ == "__main__":
-    user_cmd = input("Command: ")
-    subprocess.call(user_cmd, shell=True)
+    username = input("Enter username: ")
+    if authenticate(username):
+        print("Authentication successful")
+    else:
+        print("Invalid username or password")
